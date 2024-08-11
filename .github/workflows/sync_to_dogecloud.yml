@@ -1,62 +1,27 @@
-name: Sync all files to Doge Cloud
+name: Upload to DogeCloud COS
 
 on:
   push:
     branches:
-      - master  # 监控 main 分支的变动
+      - master  # 在推送到 main 分支时触发工作流
 
 jobs:
-  sync:
+  upload_all_files:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-    - name: Install dependencies
+    - name: Install Python dependencies
       run: |
-        pip install requests
+        pip install cos-python-sdk-v5
 
-    - name: Sync files to Doge Cloud
+    - name: Upload all files to COS
+      run: |
+        python upload_all_files.py
       env:
         COS_SECRET_ID: ${{ secrets.COS_SECRET_ID }}
         COS_SECRET_KEY: ${{ secrets.COS_SECRET_KEY }}
         COS_BUCKET: ${{ secrets.COS_BUCKET }}
         COS_REGION: ${{ secrets.COS_REGION }}
         COS_ENDPOINT: ${{ secrets.COS_ENDPOINT }}
-      run: |
-        python -c "
-        import os
-        import requests
-
-        # 获取临时上传密钥
-        def get_temp_credentials():
-            response = requests.post(
-                'https://api.dogecloud.com/auth/tmp_token.json',
-                headers={
-                    'Authorization': 'Bearer YOUR_ACCESS_TOKEN',  # 替换为你的访问令牌
-                    'Content-Type': 'application/json'
-                },
-                json={
-                    'channel': 'OSS_UPLOAD',
-                    'scope': [f'${{ secrets.COS_BUCKET }}:{file}' for file in os.listdir('.')]
-                }
-            )
-            return response.json()
-
-        # 上传单个文件
-        def upload_file(credentials, file_path):
-            url = f"{credentials['data']['Buckets'][0]['s3Endpoint']}/{credentials['data']['Buckets'][0]['s3Bucket']}/{file_path}"
-            headers = {
-                'Authorization': f"Bearer {credentials['data']['Credentials']['sessionToken']}"
-            }
-            with open(file_path, 'rb') as file:
-                response = requests.put(url, headers=headers, data=file)
-                print(f'Uploaded {file_path}:', response.status_code)
-
-        # 主逻辑
-        credentials = get_temp_credentials()
-        for file in os.listdir('.'):
-            if os.path.isfile(file):
-                upload_file(credentials, file)
-        "
