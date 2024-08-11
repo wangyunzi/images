@@ -1,4 +1,4 @@
-name: Sync to Doge Cloud
+name: Sync all files to Doge Cloud
 
 on:
   push:
@@ -15,9 +15,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install tencentcloud-sdk-python
+        pip install requests
 
-    - name: Sync file to Doge Cloud
+    - name: Sync files to Doge Cloud
       env:
         COS_SECRET_ID: ${{ secrets.COS_SECRET_ID }}
         COS_SECRET_KEY: ${{ secrets.COS_SECRET_KEY }}
@@ -26,20 +26,37 @@ jobs:
         COS_ENDPOINT: ${{ secrets.COS_ENDPOINT }}
       run: |
         python -c "
-        from tencentcloud.common import credential
-        from tencentcloud.common.profile import ClientProfile
-        from tencentcloud.common.profile.http_profile import HttpProfile
-        from tencentcloud.cos.v5 import cos_client
+        import os
+        import requests
 
-        cred = credential.Credential('${{ env.COS_SECRET_ID }}', '${{ env.COS_SECRET_KEY }}')
-        http_profile = HttpProfile(endpoint='${{ env.COS_ENDPOINT }}')
-        client_profile = ClientProfile(httpProfile=http_profile)
-        client = cos_client.CosClient(cred, '${{ env.COS_REGION }}', client_profile)
+        # 获取临时上传密钥
+        def get_temp_credentials():
+            response = requests.post(
+                'https://api.dogecloud.com/auth/tmp_token.json',
+                headers={
+                    'Authorization': 'Bearer YOUR_ACCESS_TOKEN',  # 替换为你的访问令牌
+                    'Content-Type': 'application/json'
+                },
+                json={
+                    'channel': 'OSS_UPLOAD',
+                    'scope': [f'${{ secrets.COS_BUCKET }}:{file}' for file in os.listdir('.')]
+                }
+            )
+            return response.json()
 
-        response = client.upload_file(
-            Bucket='${{ env.COS_BUCKET }}',
-            LocalFilePath='filename.jpg',  # 将 'filename.jpg' 替换为你实际的文件路径
-            Key='filename.jpg',
-        )
-        print(response)
+        # 上传单个文件
+        def upload_file(credentials, file_path):
+            url = f"{credentials['data']['Buckets'][0]['s3Endpoint']}/{credentials['data']['Buckets'][0]['s3Bucket']}/{file_path}"
+            headers = {
+                'Authorization': f"Bearer {credentials['data']['Credentials']['sessionToken']}"
+            }
+            with open(file_path, 'rb') as file:
+                response = requests.put(url, headers=headers, data=file)
+                print(f'Uploaded {file_path}:', response.status_code)
+
+        # 主逻辑
+        credentials = get_temp_credentials()
+        for file in os.listdir('.'):
+            if os.path.isfile(file):
+                upload_file(credentials, file)
         "
