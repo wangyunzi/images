@@ -1,6 +1,7 @@
 import boto3
 import os
 from pathlib import Path
+from botocore.client import Config
 
 # 从环境变量中获取配置
 BUCKET_NAME = os.getenv('COS_BUCKET')
@@ -8,12 +9,13 @@ ENDPOINT = os.getenv('COS_ENDPOINT')
 ACCESS_KEY = os.getenv('COS_SECRET_ID')
 SECRET_KEY = os.getenv('COS_SECRET_KEY')
 
-# 创建 COS 客户端
+# 创建 COS 客户端，指定虚拟主机样式访问
 s3_client = boto3.client(
     's3',
     endpoint_url=ENDPOINT,
     aws_access_key_id=ACCESS_KEY,
-    aws_secret_access_key=SECRET_KEY
+    aws_secret_access_key=SECRET_KEY,
+    config=Config(s3={'addressing_style': 'virtual'})
 )
 
 # 上传目录中的文件到多吉云
