@@ -9,6 +9,12 @@ ENDPOINT = os.getenv('COS_ENDPOINT')
 ACCESS_KEY = os.getenv('COS_SECRET_ID')
 SECRET_KEY = os.getenv('COS_SECRET_KEY')
 
+# 打印调试信息
+print("BUCKET_NAME:", BUCKET_NAME)
+print("ENDPOINT:", ENDPOINT)
+print("ACCESS_KEY:", ACCESS_KEY)
+print("SECRET_KEY:", SECRET_KEY)
+
 # 创建 COS 客户端，指定虚拟主机样式访问
 s3_client = boto3.client(
     's3',
