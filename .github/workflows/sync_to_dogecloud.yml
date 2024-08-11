@@ -25,17 +25,20 @@ jobs:
           # Prepare the URL and headers
           url="${{ secrets.S3_ENDPOINT }}/${{ secrets.S3_BUCKET }}/$(basename $file)"
           host="${{ secrets.S3_BUCKET }}.cos.ap-shanghai.myqcloud.com"
-          
+
+          # Generate a signature (replace with actual signature generation code)
+          signature=$(echo -n "PUT\n\n\n$(stat -c%s "$file")\n$(basename $file)" | openssl sha1 -hmac "${{ secrets.SECRET_KEY }}" -binary | base64)
+
           # Make the request
           response=$(curl -s -X PUT "$url" \
             -H "Host: $host" \
-            -H "Authorization: Bearer ${{ secrets.ACCESS_KEY }}" \
+            -H "Authorization: COS ${signature}" \
             -H "Content-Type: application/octet-stream" \
             -T "$file")
-
+  
           # Output the response
           echo "Response for $file: $response"
-
+  
           # Check if the response contains any errors
           if [[ $response == *"error"* ]]; then
             echo "Error uploading $file: $response"
