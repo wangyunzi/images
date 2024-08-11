@@ -3,7 +3,7 @@ name: Sync to DogeCloud
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   upload:
@@ -13,44 +13,54 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
     - name: Install dependencies
       run: |
-        sudo apt-get install -y python3-pip
-        pip3 install requests
+        pip install requests boto3
 
     - name: Upload to DogeCloud
       env:
         ACCESS_KEY: ${{ secrets.ACCESS_KEY }}
         SECRET_KEY: ${{ secrets.SECRET_KEY }}
-        BUCKET_NAME: 'mybucket'
-        FILE_PATH: 'path/to/your/file.jpg'
-        UPLOAD_KEY: 'uploaded-file.jpg'
+        BUCKET_NAME: 's-sh-4319-blog-1258813047'
+        URL_PREFIX: 'https://blog.wangyunzi.com'
       run: |
         python3 <<EOF
 import requests
 import json
 import hmac
 from hashlib import sha1
+import boto3
+import os
+from datetime import datetime
 
+# 配置
 AccessKey = "${ACCESS_KEY}"
 SecretKey = "${SECRET_KEY}"
-_bucket = "${BUCKET_NAME}"
-_key = "${UPLOAD_KEY}"
+bucket_name = "${BUCKET_NAME}"
+url_prefix = "${URL_PREFIX}"
+file_path = "${FILE_PATH}"
+upload_key = "${UPLOAD_KEY}"
+force_refresh_token = "${FORCE_REFRESH_TOKEN}"
+
+# 请求临时上传凭证
 body = {
     'channel': 'OSS_UPLOAD',
-    'scopes': [
-        _bucket + ':' + _key
-    ]
+    'scopes': [bucket_name + ':' + upload_key]
 }
-bodyJSON = json.dumps(body)
-apiUrl = '/auth/tmp_token.json'
-signStr = apiUrl + "\n" + bodyJSON
-signedData = hmac.new(SecretKey.encode('utf-8'), signStr.encode('utf-8'), sha1)
-sign = signedData.digest().hex()
-Authorization = 'TOKEN ' + AccessKey + ':' + sign
+body_json = json.dumps(body)
+api_url = '/auth/tmp_token.json'
+sign_str = api_url + "\n" + body_json
+signed_data = hmac.new(SecretKey.encode('utf-8'), sign_str.encode('utf-8'), sha1)
+sign = signed_data.digest().hex()
+authorization = 'TOKEN ' + AccessKey + ':' + sign
 
-response = requests.post('https://api.dogecloud.com' + apiUrl, data=bodyJSON, headers={
-    'Authorization': Authorization,
+response = requests.post('https://api.dogecloud.com' + api_url, data=body_json, headers={
+    'Authorization': authorization,
     'Content-Type': 'application/json'
 })
 res = response.json()
@@ -63,9 +73,6 @@ s3_endpoint = res['data']['Buckets'][0]['s3Endpoint']
 s3_bucket = res['data']['Buckets'][0]['s3Bucket']
 credentials = res['data']['Credentials']
 
-import boto3
-from botocore.exceptions import NoCredentialsError
-
 session = boto3.Session(
     aws_access_key_id=credentials['AccessKeyId'],
     aws_secret_access_key=credentials['SecretAccessKey'],
@@ -73,11 +80,21 @@ session = boto3.Session(
 )
 s3 = session.client('s3', endpoint_url=s3_endpoint)
 
+# 计算上传路径
+def calculate_upload_path():
+    now = datetime.now()
+    year = now.year
+    month = now.month
+    file_name, file_extension = os.path.splitext(os.path.basename(file_path))
+    md5 = hashlib.md5(open(file_path, 'rb').read()).hexdigest()
+    ext_name = file_extension.lstrip('.')
+    return f'{year}/{month}/{md5}.{ext_name}/webp'
+
+upload_path = calculate_upload_path()
+
 try:
-    s3.upload_file('${FILE_PATH}', s3_bucket, _key)
+    s3.upload_file(file_path, s3_bucket, upload_path)
     print('File uploaded successfully.')
-except FileNotFoundError:
-    print('The file was not found.')
-except NoCredentialsError:
-    print('Credentials not available.')
+except Exception as e:
+    print(f'Upload failed: {e}')
 EOF
