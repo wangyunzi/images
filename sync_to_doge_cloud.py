@@ -1,21 +1,14 @@
 import boto3
-import os
-from pathlib import Path
 from botocore.client import Config
+from pathlib import Path
 
-# 从环境变量中获取配置
-BUCKET_NAME = os.getenv('COS_BUCKET')
-ENDPOINT = os.getenv('COS_ENDPOINT')
-ACCESS_KEY = os.getenv('COS_SECRET_ID')
-SECRET_KEY = os.getenv('COS_SECRET_KEY')
+# 配置信息
+BUCKET_NAME = 's-sh-4319-blog-1258813047'
+ENDPOINT = 'https://cos.ap-shanghai.myqcloud.com'
+ACCESS_KEY = 'c1c06722b68f3327'
+SECRET_KEY = '799e18e52933b9e71fbc4261a139a51d'
 
-# 打印调试信息
-print("BUCKET_NAME:", BUCKET_NAME)
-print("ENDPOINT:", ENDPOINT)
-print("ACCESS_KEY:", ACCESS_KEY)
-print("SECRET_KEY:", SECRET_KEY)
-
-# 创建 COS 客户端，指定虚拟主机样式访问
+# 创建 COS 客户端
 s3_client = boto3.client(
     's3',
     endpoint_url=ENDPOINT,
@@ -24,12 +17,13 @@ s3_client = boto3.client(
     config=Config(s3={'addressing_style': 'virtual'})
 )
 
-# 上传目录中的文件到多吉云
+# 上传文件函数
 def upload_to_cos(directory, bucket_name):
     for file_path in Path(directory).rglob('*'):
         if file_path.is_file():
             with open(file_path, 'rb') as data:
                 s3_client.upload_fileobj(data, bucket_name, str(file_path.relative_to(directory)))
+                print(f"Uploaded: {file_path}")
 
-# 上传整个仓库内容
+# 执行上传
 upload_to_cos('.', BUCKET_NAME)
