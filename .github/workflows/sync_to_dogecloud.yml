@@ -3,7 +3,7 @@ name: Sync Files to DogeCloud
 on:
   push:
     branches:
-      - master  # 你希望同步的目标分支
+      - master
   workflow_dispatch:  # 允许手动触发工作流
 
 jobs:
@@ -23,25 +23,30 @@ jobs:
       run: |
         for file in $(find . -type f); do
           echo "Uploading $file to DogeCloud..."
-
+          
           # Prepare the URL and headers
           url="https://api.dogecloud.com/oss/upload/put.json?bucket=${{ secrets.S3_BUCKET }}&key=$(basename $file)"
           authorization="TOKEN ${{ secrets.ACCESS_KEY }}:${{ secrets.SECRET_KEY }}"
           
+          echo "Request URL: $url"
+          echo "Authorization Header: $authorization"
+          
           # Make the request
-          response=$(curl -s -X POST "$url" \
+          response=$(curl -s -o response.json -w "%{http_code}" -X POST "$url" \
             -H "Authorization: $authorization" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @"$file")
   
           # Output the response
-          echo "Response for $file: $response"
+          echo "HTTP Status Code: $response"
+          echo "Response body:"
+          cat response.json
   
           # Check if the response contains any errors
-          if [[ $response == *"code":200* ]]; then
+          if [[ $response == "200" && $(jq -r '.code' response.json) == "200" ]]; then
             echo "$file uploaded successfully."
           else
-            echo "Error uploading $file: $response"
+            echo "Error uploading $file: $(cat response.json)"
           fi
         done
       env:
