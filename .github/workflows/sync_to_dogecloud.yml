@@ -17,10 +17,20 @@ jobs:
     - name: Sync files to DogeCloud
       run: |
         for file in $(find . -type f); do
-          curl -X POST "https://api.dogecloud.com/upload" \
+          echo "Uploading $file..."
+          response=$(curl -s -X POST "https://api.dogecloud.com/upload" \
             -H "Authorization: Bearer ${{ secrets.ACCESS_KEY }}" \
             -F "file=@$file" \
-            -F "key=$(basename $file)"
+            -F "key=$(basename $file)")
+          echo "Response: $response"
+
+          # Check the 'code' field in the JSON response
+          code=$(echo $response | jq -r '.code')
+          if [ "$code" != "200" ]; then
+            echo "Error uploading $file: $(echo $response | jq -r '.msg')"
+          else
+            echo "$file uploaded successfully."
+          fi
         done
       env:
         ACCESS_KEY: ${{ secrets.ACCESS_KEY }}
