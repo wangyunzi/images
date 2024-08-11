@@ -3,7 +3,7 @@ name: Sync to DogeCloud
 on:
   push:
     branches:
-      - master
+      - master  # 确保与您的默认分支名称一致
 
 jobs:
   upload:
@@ -27,7 +27,7 @@ jobs:
         ACCESS_KEY: ${{ secrets.ACCESS_KEY }}
         SECRET_KEY: ${{ secrets.SECRET_KEY }}
       run: |
-        python3 <<EOF
+        python3 -c "
 import requests
 import json
 import hmac
@@ -36,9 +36,9 @@ import boto3
 import os
 
 # 从环境变量获取 AccessKey 和 SecretKey
-AccessKey = "${ACCESS_KEY}"
-SecretKey = "${SECRET_KEY}"
-bucket_name = "s-sh-4319-blog-1258813047"
+AccessKey = '${{ secrets.ACCESS_KEY }}'
+SecretKey = '${{ secrets.SECRET_KEY }}'
+bucket_name = 's-sh-4319-blog-1258813047'
 
 # 请求临时上传凭证
 body = {
@@ -47,7 +47,7 @@ body = {
 }
 body_json = json.dumps(body)
 api_url = '/auth/tmp_token.json'
-sign_str = api_url + "\n" + body_json
+sign_str = api_url + '\\n' + body_json
 signed_data = hmac.new(SecretKey.encode('utf-8'), sign_str.encode('utf-8'), sha1)
 sign = signed_data.digest().hex()
 authorization = 'TOKEN ' + AccessKey + ':' + sign
@@ -77,11 +77,11 @@ s3 = session.client('s3', endpoint_url=s3_endpoint)
 for root, dirs, files in os.walk('.'):
     for file_name in files:
         file_path = os.path.join(root, file_name)
-        upload_key = os.path.relpath(file_path, start='.')  # 保持相对路径
+        upload_key = os.path.relpath(file_path, start='.')
 
         try:
             s3.upload_file(file_path, s3_bucket, upload_key)
             print(f'Uploaded {file_path} as {upload_key}')
         except Exception as e:
             print(f'Failed to upload {file_path}: {e}')
-EOF
+"
