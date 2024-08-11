@@ -3,7 +3,7 @@ name: Sync to Doge Cloud
 on:
   push:
     branches:
-      - main  # 监控 main 分支的变动
+      - master  # 监控 main 分支的变动
 
 jobs:
   sync:
