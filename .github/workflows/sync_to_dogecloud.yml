@@ -3,7 +3,7 @@ name: Sync to DogeCloud
 on:
   push:
     branches:
-      - main
+      - mster
 
 jobs:
   upload:
