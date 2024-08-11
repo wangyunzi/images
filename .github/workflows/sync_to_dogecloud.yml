@@ -3,7 +3,7 @@ name: Sync to DogeCloud
 on:
   push:
     branches:
-      - master  # 确保与您的默认分支名称一致
+      - master
 
 jobs:
   upload:
