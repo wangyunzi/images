@@ -14,14 +14,26 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Install jq
+      run: sudo apt-get install -y jq
+
     - name: Sync files to COS
       run: |
         for file in $(find . -type f); do
           echo "Uploading $file to COS..."
-          response=$(curl -s -X PUT "${{ secrets.S3_ENDPOINT }}/${{ secrets.S3_BUCKET }}/$(basename $file)" \
-            -H "Host: ${{ secrets.S3_BUCKET }}.cos.ap-shanghai.myqcloud.com" \
+          
+          # Prepare the URL and headers
+          url="${{ secrets.S3_ENDPOINT }}/${{ secrets.S3_BUCKET }}/$(basename $file)"
+          host="${{ secrets.S3_BUCKET }}.cos.ap-shanghai.myqcloud.com"
+          
+          # Make the request
+          response=$(curl -s -X PUT "$url" \
+            -H "Host: $host" \
             -H "Authorization: Bearer ${{ secrets.ACCESS_KEY }}" \
+            -H "Content-Type: application/octet-stream" \
             -T "$file")
+
+          # Output the response
           echo "Response for $file: $response"
 
           # Check if the response contains any errors
