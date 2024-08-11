@@ -1,4 +1,4 @@
-name: Sync Files to COS
+name: Sync Files to DogeCloud
 
 on:
   push:
@@ -14,40 +14,37 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Install jq
-      run: sudo apt-get install -y jq
+    - name: Install required packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq curl
 
-    - name: Sync files to COS
+    - name: Sync files to DogeCloud
       run: |
         for file in $(find . -type f); do
-          echo "Uploading $file to COS..."
-          
+          echo "Uploading $file to DogeCloud..."
+
           # Prepare the URL and headers
-          url="${{ secrets.S3_ENDPOINT }}/${{ secrets.S3_BUCKET }}/$(basename $file)"
-          host="${{ secrets.S3_BUCKET }}.cos.ap-shanghai.myqcloud.com"
-
-          # Generate a signature (replace with actual signature generation code)
-          signature=$(echo -n "PUT\n\n\n$(stat -c%s "$file")\n$(basename $file)" | openssl sha1 -hmac "${{ secrets.SECRET_KEY }}" -binary | base64)
-
+          url="https://api.dogecloud.com/oss/upload/put.json?bucket=${{ secrets.S3_BUCKET }}&key=$(basename $file)"
+          authorization="TOKEN ${{ secrets.ACCESS_KEY }}:${{ secrets.SECRET_KEY }}"
+          
           # Make the request
-          response=$(curl -s -X PUT "$url" \
-            -H "Host: $host" \
-            -H "Authorization: COS ${signature}" \
+          response=$(curl -s -X POST "$url" \
+            -H "Authorization: $authorization" \
             -H "Content-Type: application/octet-stream" \
-            -T "$file")
+            --data-binary @"$file")
   
           # Output the response
           echo "Response for $file: $response"
   
           # Check if the response contains any errors
-          if [[ $response == *"error"* ]]; then
-            echo "Error uploading $file: $response"
-          else
+          if [[ $response == *"code":200* ]]; then
             echo "$file uploaded successfully."
+          else
+            echo "Error uploading $file: $response"
           fi
         done
       env:
         S3_BUCKET: s-sh-4319-blog-1258813047
-        S3_ENDPOINT: https://cos.ap-shanghai.myqcloud.com
         ACCESS_KEY: ${{ secrets.ACCESS_KEY }}
         SECRET_KEY: ${{ secrets.SECRET_KEY }}
