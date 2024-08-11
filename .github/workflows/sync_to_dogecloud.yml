@@ -23,25 +23,31 @@ jobs:
       run: |
         for file in $(find . -type f); do
           echo "Uploading $file to DogeCloud..."
-          
+
           # Prepare the URL and headers
-          url="https://api.dogecloud.com/oss/upload/put.json?bucket=${{ secrets.S3_BUCKET }}&key=$(basename $file)"
-          authorization="TOKEN ${{ secrets.ACCESS_KEY }}:${{ secrets.SECRET_KEY }}"
-          
+          bucket="${{ secrets.S3_BUCKET }}"
+          key=$(basename "$file")
+          url="https://api.dogecloud.com/oss/upload/put.json?bucket=${bucket}&key=${key}"
+
+          # Generate the signature
+          signStr="/oss/upload/put.json?bucket=${bucket}&key=${key}\n"
+          signature=$(echo -n "$signStr" | openssl dgst -sha1 -hmac "${{ secrets.SECRET_KEY }}" -binary | base64)
+          authorization="TOKEN ${{ secrets.ACCESS_KEY }}:${signature}"
+
           echo "Request URL: $url"
           echo "Authorization Header: $authorization"
-          
+
           # Make the request
           response=$(curl -s -o response.json -w "%{http_code}" -X POST "$url" \
             -H "Authorization: $authorization" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @"$file")
-  
+
           # Output the response
           echo "HTTP Status Code: $response"
           echo "Response body:"
           cat response.json
-  
+
           # Check if the response contains any errors
           if [[ $response == "200" && $(jq -r '.code' response.json) == "200" ]]; then
             echo "$file uploaded successfully."
