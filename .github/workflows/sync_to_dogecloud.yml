@@ -1,4 +1,4 @@
-name: Sync Files to DogeCloud
+name: Sync Files to COS
 
 on:
   push:
@@ -14,24 +14,25 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Sync files to DogeCloud
+    - name: Sync files to COS
       run: |
         for file in $(find . -type f); do
-          echo "Uploading $file..."
-          response=$(curl -s -X POST "https://api.dogecloud.com/upload" \
+          echo "Uploading $file to COS..."
+          response=$(curl -s -X PUT "${{ secrets.S3_ENDPOINT }}/${{ secrets.S3_BUCKET }}/$(basename $file)" \
+            -H "Host: ${{ secrets.S3_BUCKET }}.cos.ap-shanghai.myqcloud.com" \
             -H "Authorization: Bearer ${{ secrets.ACCESS_KEY }}" \
-            -F "file=@$file" \
-            -F "key=$(basename $file)")
-          echo "Response: $response"
+            -T "$file")
+          echo "Response for $file: $response"
 
-          # Check the 'code' field in the JSON response
-          code=$(echo $response | jq -r '.code')
-          if [ "$code" != "200" ]; then
-            echo "Error uploading $file: $(echo $response | jq -r '.msg')"
+          # Check if the response contains any errors
+          if [[ $response == *"error"* ]]; then
+            echo "Error uploading $file: $response"
           else
             echo "$file uploaded successfully."
           fi
         done
       env:
+        S3_BUCKET: s-sh-4319-blog-1258813047
+        S3_ENDPOINT: https://cos.ap-shanghai.myqcloud.com
         ACCESS_KEY: ${{ secrets.ACCESS_KEY }}
         SECRET_KEY: ${{ secrets.SECRET_KEY }}
