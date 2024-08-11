@@ -22,7 +22,7 @@ jobs:
       run: |
         pip install requests boto3
 
-    - name: Upload all files to DogeCloud
+    - name: Upload files to DogeCloud
       env:
         ACCESS_KEY: ${{ secrets.ACCESS_KEY }}
         SECRET_KEY: ${{ secrets.SECRET_KEY }}
